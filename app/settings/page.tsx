@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Subreddit { id: number; name: string; active: number; }
@@ -10,12 +10,32 @@ interface SettingsData {
   hasRefreshToken: boolean;
 }
 
+function OAuthBanner() {
+  const searchParams = useSearchParams();
+  const oauthConnected = searchParams.get("connected") === "1";
+  const oauthError = searchParams.get("error");
+  if (!oauthConnected && !oauthError) return null;
+  return (
+    <>
+      {oauthConnected && (
+        <div style={{ background: "#052e16", border: "1px solid #16a34a", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#34d399", fontSize: 14 }}>
+          Reddit account connected successfully.
+        </div>
+      )}
+      {oauthError && (
+        <div style={{ background: "#1c0a0a", border: "1px solid #dc2626", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#f87171", fontSize: 14 }}>
+          {oauthError === "reddit_auth_denied" ? "Reddit authorization was denied." : "Failed to connect Reddit account. Check server logs."}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function SettingsPage() {
   const [data, setData] = useState<SettingsData | null>(null);
   const [newSub, setNewSub] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
-  const searchParams = useSearchParams();
 
   useEffect(() => { load(); }, []);
 
@@ -37,25 +57,13 @@ export default function SettingsPage() {
     setScanning(false); load();
   }
 
-  const oauthConnected = searchParams.get("connected") === "1";
-  const oauthError = searchParams.get("error");
-
   if (!data) return <div style={{ padding: 40, color: "#9ca3af" }}>Loading...</div>;
 
   return (
     <div style={{ padding: 32, maxWidth: 600 }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
-      {oauthConnected && (
-        <div style={{ background: "#052e16", border: "1px solid #16a34a", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#34d399", fontSize: 14 }}>
-          Reddit account connected successfully.
-        </div>
-      )}
-      {oauthError && (
-        <div style={{ background: "#1c0a0a", border: "1px solid #dc2626", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#f87171", fontSize: 14 }}>
-          {oauthError === "reddit_auth_denied" ? "Reddit authorization was denied." : "Failed to connect Reddit account. Check server logs."}
-        </div>
-      )}
+      <Suspense fallback={null}><OAuthBanner /></Suspense>
 
       <section style={{ background: "#16133a", borderRadius: 10, padding: 20, marginBottom: 20, border: "1px solid #374151" }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Reddit Connection</h2>

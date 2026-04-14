@@ -3,44 +3,65 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV = [
+const REDDIT_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "📋" },
   { href: "/templates", label: "Templates", icon: "✉️" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
   { href: "/history", label: "History", icon: "📜" },
 ];
 
+const EMAIL_NAV = [
+  { href: "/email", label: "Email Outreach", icon: "📧" },
+  { href: "/email/templates", label: "Email Templates", icon: "📝" },
+  { href: "/email/prospects", label: "Prospects", icon: "👥" },
+  { href: "/email/import", label: "Import CSV", icon: "📂" },
+  { href: "/email/history", label: "Email History", icon: "📜" },
+];
+
 export default function SidebarNav() {
   const pathname = usePathname();
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingDmCount, setPendingDmCount] = useState(0);
+  const [pendingEmailCount, setPendingEmailCount] = useState(0);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/dashboard").then(r => r.json()).then(d => setPendingCount(d.pendingCount ?? 0)).catch(() => {});
+    fetch("/api/dashboard").then(r => r.json()).then(d => setPendingDmCount(d.pendingCount ?? 0)).catch(() => {});
+    fetch("/api/email/metrics").then(r => r.json()).then(d => setPendingEmailCount(d.pending ?? 0)).catch(() => {});
   }, [pathname]);
 
+  function NavLink({ item, badge }: { item: { href: string; label: string; icon: string }; badge?: number }) {
+    const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/") && item.href !== "/email" ) || pathname === item.href;
+    const isEmailRoot = item.href === "/email" && (pathname === "/email" || pathname.startsWith("/email"));
+    const isActive = pathname === item.href || isEmailRoot;
+    return (
+      <Link href={item.href} onClick={() => setOpen(false)} style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+        borderRadius: 8, marginBottom: 4, textDecoration: "none",
+        background: isActive ? "#4f46e5" : "transparent",
+        color: isActive ? "white" : "#c7d2fe",
+        fontWeight: isActive ? 600 : 400, fontSize: 14,
+      }}>
+        <span>{item.icon}</span>
+        <span style={{ flex: 1 }}>{item.label}</span>
+        {badge != null && badge > 0 && (
+          <span style={{ background: isActive ? "rgba(255,255,255,0.25)" : "#4f46e5", color: "white", borderRadius: 10, padding: "1px 8px", fontSize: 12, fontWeight: 700 }}>
+            {badge}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
   const navLinks = (
-    <nav style={{ flex: 1, padding: "12px 8px" }}>
-      {NAV.map(item => {
-        const active = pathname === item.href;
-        return (
-          <Link key={item.href} href={item.href} onClick={() => setOpen(false)} style={{
-            display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
-            borderRadius: 8, marginBottom: 4, textDecoration: "none",
-            background: active ? "#4f46e5" : "transparent",
-            color: active ? "white" : "#c7d2fe",
-            fontWeight: active ? 600 : 400, fontSize: 14,
-          }}>
-            <span>{item.icon}</span>
-            <span style={{ flex: 1 }}>{item.label}</span>
-            {item.href === "/dashboard" && pendingCount > 0 && (
-              <span style={{ background: active ? "rgba(255,255,255,0.25)" : "#4f46e5", color: "white", borderRadius: 10, padding: "1px 8px", fontSize: 12, fontWeight: 700 }}>
-                {pendingCount}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+    <nav style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
+      <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", padding: "4px 12px 6px" }}>Reddit DM</div>
+      {REDDIT_NAV.map(item => (
+        <NavLink key={item.href} item={item} badge={item.href === "/dashboard" ? pendingDmCount : undefined} />
+      ))}
+      <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", padding: "12px 12px 6px", borderTop: "1px solid #2d2a5e", marginTop: 8 }}>Email Outreach</div>
+      {EMAIL_NAV.map(item => (
+        <NavLink key={item.href} item={item} badge={item.href === "/email" ? pendingEmailCount : undefined} />
+      ))}
     </nav>
   );
 
@@ -52,7 +73,7 @@ export default function SidebarNav() {
       </div>
       {navLinks}
       <div style={{ padding: "12px 16px", borderTop: "1px solid #2d2a5e", fontSize: 11, color: "#6b7280" }}>
-        Auto-scan: daily 08:00 UTC
+        Manual send · DRY_RUN={process.env.NEXT_PUBLIC_DRY_RUN ?? "see .env"}
       </div>
     </div>
   );

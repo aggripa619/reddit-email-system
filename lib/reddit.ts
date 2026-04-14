@@ -39,21 +39,22 @@ export async function exchangeCodeForTokens(code: string): Promise<void> {
   const data = await res.json();
   const expiresAt = new Date(Date.now() + (data.expires_in - 60) * 1000).toISOString();
   const db = getDb();
-  db.prepare(`
-    INSERT INTO auth_tokens (id, access_token, refresh_token, expires_at, updated_at)
+  await db.execute({
+    sql: `INSERT INTO auth_tokens (id, access_token, refresh_token, expires_at, updated_at)
     VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       access_token = excluded.access_token,
       refresh_token = excluded.refresh_token,
       expires_at = excluded.expires_at,
-      updated_at = CURRENT_TIMESTAMP
-  `).run(data.access_token, data.refresh_token, expiresAt);
+      updated_at = CURRENT_TIMESTAMP`,
+    args: [data.access_token, data.refresh_token, expiresAt],
+  });
 }
 
 async function refreshAccessToken(): Promise<string> {
   const db = getDb();
-  const row = db.prepare('SELECT refresh_token FROM auth_tokens WHERE id = 1').get() as
-    { refresh_token: string } | undefined;
+  const r = await db.execute({ sql: 'SELECT refresh_token FROM auth_tokens WHERE id = 1', args: [] });
+  const row = r.rows[0] as unknown as { refresh_token: string } | undefined;
   if (!row?.refresh_token) throw new Error('No refresh token stored. Please connect your Reddit account in Settings.');
 
   const res = await fetch('https://www.reddit.com/api/v1/access_token', {
@@ -65,25 +66,26 @@ async function refreshAccessToken(): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: row.refresh_token,
+      refresh_token: String(row.refresh_token),
     }).toString(),
   });
   if (!res.ok) throw new Error(`Reddit token refresh failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
   const expiresAt = new Date(Date.now() + (data.expires_in - 60) * 1000).toISOString();
-  db.prepare(`
-    UPDATE auth_tokens SET access_token = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1
-  `).run(data.access_token, expiresAt);
+  await db.execute({
+    sql: 'UPDATE auth_tokens SET access_token = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1',
+    args: [data.access_token, expiresAt],
+  });
   return data.access_token;
 }
 
 export async function getValidToken(): Promise<string> {
   const db = getDb();
-  const row = db.prepare('SELECT access_token, refresh_token, expires_at FROM auth_tokens WHERE id = 1').get() as
-    { access_token: string; refresh_token: string; expires_at: string } | undefined;
+  const r = await db.execute({ sql: 'SELECT access_token, refresh_token, expires_at FROM auth_tokens WHERE id = 1', args: [] });
+  const row = r.rows[0] as unknown as { access_token: string; refresh_token: string; expires_at: string } | undefined;
   if (!row?.refresh_token) throw new Error('No Reddit auth tokens found. Please connect your Reddit account in Settings.');
-  if (row.access_token && row.expires_at && new Date(row.expires_at) > new Date()) {
-    return row.access_token;
+  if (row.access_token && row.expires_at && new Date(String(row.expires_at)) > new Date()) {
+    return String(row.access_token);
   }
   return refreshAccessToken();
 }
