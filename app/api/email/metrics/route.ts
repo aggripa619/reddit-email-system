@@ -3,7 +3,7 @@ import { getMetrics } from '@/lib/email/db';
 
 export async function GET() {
   try {
-    return NextResponse.json(getMetrics());
+    return NextResponse.json(await getMetrics());
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
