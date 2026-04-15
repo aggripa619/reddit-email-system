@@ -5,8 +5,10 @@ const PUBLIC_PATHS = [
   '/login',
   '/api/auth/login',
   '/api/auth/logout',
-  '/api/email/webhook',      // Resend webhook — external
-  '/api/cron/send-scheduled', // Protected by CRON_SECRET
+  '/api/auth/reddit/start',    // Redirects to Reddit OAuth
+  '/api/auth/reddit/callback', // Receives OAuth code from Reddit — must not be intercepted
+  '/api/email/webhook',        // Resend webhook — external
+  '/api/cron/send-scheduled',  // Protected by CRON_SECRET
 ];
 
 export async function middleware(req: NextRequest) {
