@@ -14,11 +14,20 @@ function riskColor(score: number) {
   return { bg: "#14532d", text: "#86efac" };
 }
 
+function localDatetimeMin() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + 5);
+  // datetime-local expects "YYYY-MM-DDTHH:MM"
+  return d.toISOString().slice(0, 16);
+}
+
 export default function EmailCard({ step, onRemove }: { step: Step; onRemove: (id: number) => void }) {
   const [subject, setSubject] = useState(step.subject ?? "");
   const [body, setBody] = useState(step.body_html ?? "");
-  const [loading, setLoading] = useState<"approve" | "discard" | null>(null);
+  const [loading, setLoading] = useState<"approve" | "schedule" | "discard" | null>(null);
   const [error, setError] = useState("");
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [sendAt, setSendAt] = useState(localDatetimeMin());
 
   const risk = riskColor(step.risk_score ?? 0);
   const name = [step.first_name, step.last_name].filter(Boolean).join(" ") || step.email;
@@ -32,6 +41,17 @@ export default function EmailCard({ step, onRemove }: { step: Step; onRemove: (i
     const data = await res.json();
     if (data.success) onRemove(step.step_id);
     else { setError(data.error ?? "Failed to send"); setLoading(null); }
+  }
+
+  async function handleSchedule() {
+    setLoading("schedule"); setError("");
+    const res = await fetch("/api/email/schedule", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stepId: step.step_id, subject, bodyHtml: body, sendAt: new Date(sendAt).toISOString() }),
+    });
+    const data = await res.json();
+    if (data.success) onRemove(step.step_id);
+    else { setError(data.error ?? "Failed to schedule"); setLoading(null); }
   }
 
   async function handleDiscard() {
@@ -81,16 +101,41 @@ export default function EmailCard({ step, onRemove }: { step: Step; onRemove: (i
 
       {error && <p style={{ color: "#f87171", fontSize: 13, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={handleApprove} disabled={loading !== null}
           style={{ background: loading === "approve" ? "#312e81" : "#4f46e5", color: "white", border: "none", borderRadius: 6, padding: "8px 18px", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>
           {loading === "approve" ? "Sending..." : "Approve & Send"}
+        </button>
+        <button onClick={() => { setShowScheduler(s => !s); setError(""); }} disabled={loading !== null}
+          style={{ background: showScheduler ? "#1e1b4b" : "transparent", color: "#a5b4fc", border: "1px solid #4f46e5", borderRadius: 6, padding: "8px 18px", cursor: loading ? "not-allowed" : "pointer" }}>
+          Schedule for later {showScheduler ? "▴" : "▾"}
         </button>
         <button onClick={handleDiscard} disabled={loading !== null}
           style={{ background: "transparent", color: "#f87171", border: "1px solid #f87171", borderRadius: 6, padding: "8px 18px", cursor: loading ? "not-allowed" : "pointer" }}>
           {loading === "discard" ? "..." : "Discard"}
         </button>
       </div>
+
+      {showScheduler && (
+        <div style={{ marginTop: 12, background: "#0f0c2e", border: "1px solid #312e81", borderRadius: 8, padding: "14px 16px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={{ fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap" }}>Send at</label>
+          <input
+            type="datetime-local"
+            value={sendAt}
+            min={localDatetimeMin()}
+            onChange={e => setSendAt(e.target.value)}
+            style={{ background: "#1e1b4b", color: "white", border: "1px solid #4f46e5", borderRadius: 6, padding: "6px 10px", fontSize: 13 }}
+          />
+          <button onClick={handleSchedule} disabled={loading !== null || !sendAt}
+            style={{ background: loading === "schedule" ? "#312e81" : "#4f46e5", color: "white", border: "none", borderRadius: 6, padding: "7px 16px", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 13 }}>
+            {loading === "schedule" ? "Scheduling..." : "Confirm Schedule"}
+          </button>
+          <button onClick={() => setShowScheduler(false)} disabled={loading !== null}
+            style={{ background: "transparent", color: "#6b7280", border: "none", cursor: "pointer", fontSize: 13 }}>
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
