@@ -32,7 +32,7 @@ export async function pollForReplies(): Promise<ImapPollResult> {
 
     const since = new Date();
     since.setDate(since.getDate() - 14);
-    const messages = await connection.search(['UNSEEN', ['SINCE', since.toDateString()]], {
+    const messages = await connection.search([['SINCE', since.toDateString()]], {
       bodies: ['HEADER', 'TEXT', ''],
       markSeen: false,
     });

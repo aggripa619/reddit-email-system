@@ -41,7 +41,13 @@ export default function EmailQueuePage() {
     setPolling(true); setPollMsg("");
     const res = await fetch("/api/email/imap-poll", { method: "POST" });
     const data = await res.json();
-    setPollMsg(data.success ? `Poll done — ${data.matched} replies matched.` : `Error: ${data.error}`);
+    if (!data.success) {
+      setPollMsg(`Error: ${data.error}`);
+    } else if (data.errors?.length) {
+      setPollMsg(`Poll done — ${data.matched} matched. Errors: ${data.errors.join(' | ')}`);
+    } else {
+      setPollMsg(`Poll done — ${data.matched} ${data.matched === 1 ? 'reply' : 'replies'} matched.`);
+    }
     setPolling(false);
     loadData();
   }
