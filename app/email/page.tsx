@@ -11,6 +11,8 @@ export default function EmailQueuePage() {
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [pollMsg, setPollMsg] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState("");
 
   useEffect(() => { loadData(); }, []);
 
@@ -22,6 +24,17 @@ export default function EmailQueuePage() {
     setSteps(queueRes.steps ?? []);
     setMetrics(metricsRes);
     setLoading(false);
+  }
+
+  async function handleSendScheduled() {
+    setSending(true); setSendMsg("");
+    const res = await fetch("/api/email/send-scheduled", { method: "POST" });
+    const data = await res.json();
+    setSendMsg(data.sent !== undefined
+      ? `Sent ${data.sent} scheduled email${data.sent !== 1 ? "s" : ""}.${data.errors ? " Some errors occurred." : ""}`
+      : `Error: ${data.error}`);
+    setSending(false);
+    loadData();
   }
 
   async function handlePoll() {
@@ -44,12 +57,19 @@ export default function EmailQueuePage() {
             {steps.length} pending
           </span>
         </div>
-        <button onClick={handlePoll} disabled={polling}
-          style={{ background: "transparent", border: "1px solid #4f46e5", color: "#a5b4fc", borderRadius: 6, padding: "8px 16px", cursor: polling ? "not-allowed" : "pointer", fontSize: 13 }}>
-          {polling ? "Polling..." : "Poll for Replies"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={handleSendScheduled} disabled={sending || polling}
+            style={{ background: "transparent", border: "1px solid #10b981", color: "#6ee7b7", borderRadius: 6, padding: "8px 16px", cursor: (sending || polling) ? "not-allowed" : "pointer", fontSize: 13 }}>
+            {sending ? "Sending..." : "Send Scheduled"}
+          </button>
+          <button onClick={handlePoll} disabled={polling || sending}
+            style={{ background: "transparent", border: "1px solid #4f46e5", color: "#a5b4fc", borderRadius: 6, padding: "8px 16px", cursor: (polling || sending) ? "not-allowed" : "pointer", fontSize: 13 }}>
+            {polling ? "Polling..." : "Poll for Replies"}
+          </button>
+        </div>
       </div>
 
+      {sendMsg && <p style={{ fontSize: 13, color: sendMsg.startsWith("Error") ? "#f87171" : "#34d399", marginBottom: 8 }}>{sendMsg}</p>}
       {pollMsg && <p style={{ fontSize: 13, color: pollMsg.startsWith("Error") ? "#f87171" : "#34d399", marginBottom: 16 }}>{pollMsg}</p>}
 
       {/* Metrics */}
