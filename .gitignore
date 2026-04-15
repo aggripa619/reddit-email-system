@@ -9,3 +9,4 @@ reddit-dm.db-shm
 reddit-dm.db-wal
 *.tsbuildinfo
 next-env.d.ts
+.vercel
