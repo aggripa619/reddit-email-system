@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const REDDIT_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "📋" },
@@ -20,9 +20,17 @@ const EMAIL_NAV = [
 
 export default function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [pendingDmCount, setPendingDmCount] = useState(0);
   const [pendingEmailCount, setPendingEmailCount] = useState(0);
   const [open, setOpen] = useState(false);
+
+  if (pathname === '/login') return null;
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+  }
 
   useEffect(() => {
     fetch("/api/dashboard").then(r => r.json()).then(d => setPendingDmCount(d.pendingCount ?? 0)).catch(() => {});
@@ -72,8 +80,14 @@ export default function SidebarNav() {
         <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>Reddit DM</div>
       </div>
       {navLinks}
-      <div style={{ padding: "12px 16px", borderTop: "1px solid #2d2a5e", fontSize: 11, color: "#6b7280" }}>
-        Manual send · DRY_RUN={process.env.NEXT_PUBLIC_DRY_RUN ?? "see .env"}
+      <div style={{ padding: "12px 16px", borderTop: "1px solid #2d2a5e" }}>
+        <button onClick={handleLogout} style={{
+          width: "100%", background: "transparent", border: "1px solid #374151",
+          color: "#9ca3af", borderRadius: 6, padding: "7px 12px", cursor: "pointer",
+          fontSize: 13, textAlign: "left",
+        }}>
+          Sign out
+        </button>
       </div>
     </div>
   );
