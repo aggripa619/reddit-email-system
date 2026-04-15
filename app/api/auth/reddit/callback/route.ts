@@ -14,6 +14,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/settings?connected=1', req.url));
   } catch (err: any) {
     console.error('[Reddit OAuth] Token exchange failed:', err.message);
-    return NextResponse.redirect(new URL('/settings?error=token_exchange_failed', req.url));
+    const dest = new URL('/settings', req.url);
+    dest.searchParams.set('error', 'token_exchange_failed');
+    dest.searchParams.set('detail', err.message.slice(0, 200));
+    return NextResponse.redirect(dest);
   }
 }

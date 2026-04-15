@@ -23,8 +23,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = '/login';
+  const loginUrl = new URL('/login', req.url);
   loginUrl.searchParams.set('from', pathname);
   return NextResponse.redirect(loginUrl);
 }
