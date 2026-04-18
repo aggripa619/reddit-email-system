@@ -25,14 +25,13 @@ export default function SidebarNav() {
   const [pendingEmailCount, setPendingEmailCount] = useState(0);
   const [open, setOpen] = useState(false);
 
-  if (pathname === '/login') return null;
-
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   }
 
   useEffect(() => {
+    if (pathname === '/login') return;
     fetch("/api/dashboard").then(r => r.json()).then(d => setPendingDmCount(d.pendingCount ?? 0)).catch(() => {});
     fetch("/api/email/metrics").then(r => r.json()).then(d => setPendingEmailCount(d.pending ?? 0)).catch(() => {});
   }, [pathname]);
@@ -91,6 +90,8 @@ export default function SidebarNav() {
       </div>
     </div>
   );
+
+  if (pathname === '/login') return null;
 
   return (
     <>
