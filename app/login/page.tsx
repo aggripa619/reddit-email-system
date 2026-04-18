@@ -1,9 +1,8 @@
 "use client";
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +18,7 @@ function LoginForm() {
       body: JSON.stringify({ username, password }),
     });
     if (res.ok) {
-      router.push(params.get("from") ?? "/dashboard");
+      window.location.href = params.get("from") ?? "/dashboard";
     } else {
       const data = await res.json();
       setError(data.error ?? "Invalid credentials");
