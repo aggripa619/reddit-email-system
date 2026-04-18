@@ -8,7 +8,16 @@ export async function POST(req: NextRequest) {
     username !== process.env.ADMIN_USERNAME ||
     password !== process.env.ADMIN_PASSWORD
   ) {
-    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    return NextResponse.json({
+      error: 'Invalid credentials',
+      debug: {
+        hasAdminUsername: !!process.env.ADMIN_USERNAME,
+        hasAdminPassword: !!process.env.ADMIN_PASSWORD,
+        hasSessionSecret: !!process.env.SESSION_SECRET,
+        usernameMatch: username === process.env.ADMIN_USERNAME,
+        passwordMatch: password === process.env.ADMIN_PASSWORD,
+      },
+    }, { status: 401 });
   }
 
   const sessionValue = await createSession(username);
