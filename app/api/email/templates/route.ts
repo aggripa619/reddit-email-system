@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, ensureReady } from '@/lib/db';
 
 export async function GET() {
+  await ensureReady();
   const result = await getDb().execute('SELECT * FROM email_templates ORDER BY step ASC');
   return NextResponse.json({ templates: result.rows });
 }
