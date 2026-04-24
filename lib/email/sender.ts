@@ -13,7 +13,7 @@ export async function sendEmail(params: {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const { data, error } = await resend.emails.send({
-    from: `${process.env.FROM_NAME ?? 'AnswerInsight'} <${process.env.FROM_EMAIL ?? 'outreach@answerinsight.co'}>`,
+    from: `${process.env.FROM_NAME ?? 'AnswerInsight'} <${process.env.FROM_EMAIL ?? 'hello@answerinsight.co'}>`,
     replyTo: process.env.REPLY_TO ?? undefined,
     to: [params.to],
     subject: params.subject,

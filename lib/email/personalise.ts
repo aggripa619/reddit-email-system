@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
+import { injectUtmLinks, type SequenceStep } from './utm';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -62,6 +63,8 @@ Instructions:
 - bodyHtml should be simple HTML with <p> tags, no CSS, no markdown
 - No preamble, no code blocks`;
 
+  const step = params.step as SequenceStep;
+
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -70,7 +73,11 @@ Instructions:
     });
     const text = message.content[0].type === 'text' ? message.content[0].text : '';
     const clean = text.replace(/^```json\n?/i, '').replace(/```$/i, '').trim();
-    return JSON.parse(clean) as { subject: string; bodyHtml: string };
+    const result = JSON.parse(clean) as { subject: string; bodyHtml: string };
+    return {
+      subject:  result.subject,
+      bodyHtml: injectUtmLinks(result.bodyHtml, step, params.persona),
+    };
   } catch {
     // Fallback: simple substitution
     const sub = (s: string) => s
@@ -79,6 +86,7 @@ Instructions:
     const lines = template.split('\n');
     const subjectLine = lines.find(l => l.startsWith('Subject:'))?.replace('Subject:', '').trim() ?? `Quick question for ${params.firstName}`;
     const body = lines.filter(l => !l.startsWith('Subject:')).join('\n').trim();
-    return { subject: sub(subjectLine), bodyHtml: `<p>${sub(body).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>` };
+    const bodyHtml = `<p>${sub(body).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
+    return { subject: sub(subjectLine), bodyHtml: injectUtmLinks(bodyHtml, step, params.persona) };
   }
 }
