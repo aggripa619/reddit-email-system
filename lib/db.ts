@@ -1,6 +1,7 @@
 import { createClient, type Client } from '@libsql/client';
 
 let _db: Client | null = null;
+let _initPromise: Promise<void> | null = null;
 
 export function getDb(): Client {
   if (!_db) {
@@ -10,6 +11,11 @@ export function getDb(): Client {
     });
   }
   return _db;
+}
+
+export async function ensureReady(): Promise<void> {
+  if (!_initPromise) _initPromise = initDb();
+  await _initPromise;
 }
 
 export async function initDb(): Promise<void> {
@@ -87,5 +93,54 @@ export async function initDb(): Promise<void> {
       created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+  ], 'write');
+
+  // Seed default email templates (idempotent — skips if a template for that step already exists)
+  await db.batch([
+    {
+      sql: `INSERT INTO email_templates (step, name, subject, body_html)
+            SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM email_templates WHERE step = 1)`,
+      args: [
+        1,
+        'Step 1 — Initial Outreach (Day 1)',
+        'Is [Company] visible in ChatGPT answers?',
+        `<p>Hi [First Name],</p>
+<p>[PERSONALISED OPENING — 1 sentence about something specific and current at their company]</p>
+<p>Quick question: if someone asked ChatGPT today for a recommendation in your category, would [Company] come up?</p>
+<p>Most brands have no idea. AnswerInsight tracks where your brand shows up in AI-generated answers — and where competitors are pulling ahead.</p>
+<p>Worth a 15-min look? I can show you [Company]'s current AI visibility score.</p>
+<p>James<br>AnswerInsight · <a href="{{tracking_url}}">{{tracking_url}}</a></p>`,
+      ],
+    },
+    {
+      sql: `INSERT INTO email_templates (step, name, subject, body_html)
+            SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM email_templates WHERE step = 2)`,
+      args: [
+        2,
+        'Step 2 — Follow-up (Day 4)',
+        'Re: [Company] — AI visibility check',
+        `<p>Hi [First Name],</p>
+<p>Following up on my note from Monday.</p>
+<p>AI search is moving faster than most teams expect. Brands that aren't tracking their LLM visibility now will be playing catch-up in 6 months — and catching up is the expensive part.</p>
+<p>AnswerInsight takes about 5 minutes to set up. I'm happy to walk you through it this week.</p>
+<p>Is Thursday or Friday better?</p>
+<p>James<br>AnswerInsight · <a href="{{tracking_url}}">{{tracking_url}}</a></p>`,
+      ],
+    },
+    {
+      sql: `INSERT INTO email_templates (step, name, subject, body_html)
+            SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM email_templates WHERE step = 3)`,
+      args: [
+        3,
+        'Step 3 — Breakup (Day 8)',
+        'Last note — [Company] + AI visibility',
+        `<p>Hi [First Name],</p>
+<p>I'll keep this short — last note from me.</p>
+<p>If tracking your brand's presence in ChatGPT and AI-generated answers isn't on your radar yet, it will be soon. When it is, AnswerInsight is worth a look.</p>
+<p>Free trial, no card needed:<br><a href="{{tracking_url}}">{{tracking_url}}</a></p>
+<p>Either way — good luck with what you're building at [Company].</p>
+<p>James</p>`,
+      ],
+    },
   ], 'write');
 }
