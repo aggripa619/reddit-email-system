@@ -9,9 +9,17 @@ interface PendingDM {
   total_contacts?: number; last_contacted?: string;
 }
 
-export default function DMCard({ dm, templates, onRemove }: {
-  dm: PendingDM; templates: Template[]; onRemove: (id: number) => void;
-}) {
+interface DMCardProps {
+  dm: PendingDM;
+  templates: Template[];
+  onRemove: (id: number) => void;
+  selected?: boolean;
+  onSelect?: (id: number, selected: boolean) => void;
+  onSubjectChange?: (id: number, val: string) => void;
+  onBodyChange?: (id: number, val: string) => void;
+}
+
+export default function DMCard({ dm, templates, onRemove, selected, onSelect, onSubjectChange, onBodyChange }: DMCardProps) {
   const [subject, setSubject] = useState(dm.draft_subject ?? "");
   const [body, setBody] = useState(dm.draft_body ?? "");
   const [loading, setLoading] = useState<"approve" | "discard" | null>(null);
@@ -50,17 +58,28 @@ export default function DMCard({ dm, templates, onRemove }: {
       .replace(/\{\{subreddit\}\}/g, "r/" + dm.post_subreddit)
       .replace(/\{\{post_title\}\}/g, dm.post_title)
       .replace(/\{\{comment_excerpt\}\}/g, dm.comment_body?.slice(0, 100) ?? "");
-    setSubject(sub(t.subject));
-    setBody(sub(t.body));
+    const newSubject = sub(t.subject);
+    const newBody = sub(t.body);
+    setSubject(newSubject);
+    setBody(newBody);
+    onSubjectChange?.(dm.id, newSubject);
+    onBodyChange?.(dm.id, newBody);
   }
 
   return (
     <div style={{ background: "#16133a", border: "1px solid #374151", borderRadius: 10, padding: 20, marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={selected ?? false}
+              onChange={e => onSelect(dm.id, e.target.checked)}
+              style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#4f46e5" }}
+            />
+          )}
           <a href={`https://reddit.com/user/${dm.reddit_username}`} target="_blank" rel="noopener noreferrer"
             style={{ color: "#818cf8", fontWeight: 700, fontSize: 16 }}>u/{dm.reddit_username}</a>
-          <span style={{ background: "#312e81", color: "#a5b4fc", borderRadius: 4, padding: "2px 8px", fontSize: 12 }}>r/{dm.post_subreddit}</span>
           {(dm.total_contacts ?? 0) > 0 && (
             <span style={{ background: "#1f2937", color: "#9ca3af", borderRadius: 4, padding: "2px 8px", fontSize: 12 }}>
               Contacted {dm.total_contacts}x{daysSince != null ? `, ${daysSince}d ago` : ""}
@@ -87,11 +106,18 @@ export default function DMCard({ dm, templates, onRemove }: {
 
       <div style={{ marginBottom: 8 }}>
         <label style={{ fontSize: 12, color: "#9ca3af", display: "block", marginBottom: 4 }}>Subject</label>
-        <input value={subject} onChange={e => setSubject(e.target.value)} />
+        <input
+          value={subject}
+          onChange={e => { setSubject(e.target.value); onSubjectChange?.(dm.id, e.target.value); }}
+        />
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 12, color: "#9ca3af", display: "block", marginBottom: 4 }}>Message</label>
-        <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} />
+        <textarea
+          value={body}
+          onChange={e => { setBody(e.target.value); onBodyChange?.(dm.id, e.target.value); }}
+          rows={5}
+        />
       </div>
 
       {error && <p style={{ color: "#f87171", fontSize: 13, marginBottom: 8 }}>{error}</p>}
