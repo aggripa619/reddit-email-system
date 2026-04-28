@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, ensureReady } from '@/lib/db';
 import { updateStepStatus } from '@/lib/email/db';
 import { sendEmail } from '@/lib/email/sender';
 import { scheduleNextStep } from '@/lib/email/sequence';
 
 export async function POST() {
+  await ensureReady();
   const db = getDb();
 
   const result = await db.execute(
-    "SELECT ss.*, p.email FROM sequence_steps ss JOIN prospects p ON ss.prospect_id = p.id WHERE ss.status = 'scheduled' AND ss.scheduled_at <= datetime('now')"
+    "SELECT ss.*, p.email FROM sequence_steps ss JOIN prospects p ON ss.prospect_id = p.id WHERE ss.status = 'scheduled' AND datetime(ss.scheduled_at) <= datetime('now')"
   );
   const dueSteps = result.rows as any[];
 
