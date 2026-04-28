@@ -80,16 +80,32 @@ export default function DashboardPage() {
   if (loading) return <div style={{ padding: 40, color: "#9ca3af" }}>Loading...</div>;
   if (error) return <div style={{ padding: 40, color: "#f87171" }}>Error: {error}</div>;
 
-  // Group by subreddit (API already orders by subreddit ASC)
+  // Group by post URL so all commenters on the same thread are together.
+  // API orders by subreddit ASC, post_url ASC so groups arrive pre-sorted.
   const grouped = dms.reduce<Record<string, PendingDM[]>>((acc, dm) => {
-    const key = dm.post_subreddit || "unknown";
+    const key = dm.post_url || dm.post_title || "unknown";
     if (!acc[key]) acc[key] = [];
     acc[key].push(dm);
     return acc;
   }, {});
 
-  const subreddits = Object.keys(grouped).sort();
+  // Preserve the API sort order rather than re-sorting client-side
+  const postKeys = dms
+    .map(dm => dm.post_url || dm.post_title || "unknown")
+    .filter((key, i, arr) => arr.indexOf(key) === i);
+
   const allSelected = dms.length > 0 && selectedIds.size === dms.length;
+
+  function toggleGroup(key: string) {
+    const ids = grouped[key].map(d => d.id);
+    const allIn = ids.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allIn) ids.forEach(id => next.delete(id));
+      else ids.forEach(id => next.add(id));
+      return next;
+    });
+  }
 
   return (
     <div style={{ padding: 32 }}>
@@ -140,53 +156,57 @@ export default function DashboardPage() {
           <p style={{ fontSize: 18, marginBottom: 8 }}>No pending DMs</p>
           <p style={{ fontSize: 14 }}>Run a scan from Settings to generate drafts.</p>
         </div>
-      ) : subreddits.map(subreddit => (
-        <div key={subreddit} style={{ marginBottom: 32 }}>
-          {/* Subreddit section header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <div style={{ height: 1, background: "#312e81", flex: 1 }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ background: "#312e81", color: "#a5b4fc", borderRadius: 6, padding: "4px 14px", fontSize: 14, fontWeight: 700 }}>
-                r/{subreddit}
-              </span>
-              <span style={{ color: "#6b7280", fontSize: 13 }}>
-                {grouped[subreddit].length} {grouped[subreddit].length === 1 ? "DM" : "DMs"}
-              </span>
+      ) : postKeys.map(key => {
+        const group = grouped[key];
+        const first = group[0];
+        const allIn = group.every(d => selectedIds.has(d.id));
+        return (
+          <div key={key} style={{ marginBottom: 32 }}>
+            {/* Post thread header */}
+            <div style={{ background: "#0f0c2e", border: "1px solid #312e81", borderRadius: 8, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ background: "#312e81", color: "#a5b4fc", borderRadius: 4, padding: "2px 8px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    r/{first.post_subreddit}
+                  </span>
+                  <span style={{ color: "#6b7280", fontSize: 12 }}>
+                    {group.length} {group.length === 1 ? "commenter" : "commenters"}
+                  </span>
+                </div>
+                <a
+                  href={first.post_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#e0e7ff", fontWeight: 600, fontSize: 14, textDecoration: "none", lineHeight: 1.4 }}
+                >
+                  {first.post_title}
+                </a>
+              </div>
               <button
-                onClick={() => {
-                  const ids = grouped[subreddit].map(d => d.id);
-                  const allIn = ids.every(id => selectedIds.has(id));
-                  setSelectedIds(prev => {
-                    const next = new Set(prev);
-                    if (allIn) ids.forEach(id => next.delete(id));
-                    else ids.forEach(id => next.add(id));
-                    return next;
-                  });
-                }}
-                style={{ background: "transparent", color: "#9ca3af", border: "1px solid #374151", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 12 }}>
-                {grouped[subreddit].every(d => selectedIds.has(d.id)) ? "Deselect" : "Select all"}
+                onClick={() => toggleGroup(key)}
+                style={{ background: "transparent", color: "#9ca3af", border: "1px solid #374151", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>
+                {allIn ? "Deselect thread" : "Select thread"}
               </button>
             </div>
-            <div style={{ height: 1, background: "#312e81", flex: 1 }} />
-          </div>
 
-          {grouped[subreddit].map(dm => (
-            <DMCard
-              key={dm.id}
-              dm={dm}
-              templates={templates}
-              onRemove={id => {
-                setDms(p => p.filter(d => d.id !== id));
-                setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-              }}
-              selected={selectedIds.has(dm.id)}
-              onSelect={handleSelect}
-              onSubjectChange={handleSubjectChange}
-              onBodyChange={handleBodyChange}
-            />
-          ))}
-        </div>
-      ))}
+            {group.map(dm => (
+              <DMCard
+                key={dm.id}
+                dm={dm}
+                templates={templates}
+                onRemove={id => {
+                  setDms(p => p.filter(d => d.id !== id));
+                  setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+                }}
+                selected={selectedIds.has(dm.id)}
+                onSelect={handleSelect}
+                onSubjectChange={handleSubjectChange}
+                onBodyChange={handleBodyChange}
+              />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
